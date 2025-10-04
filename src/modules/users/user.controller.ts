@@ -8,6 +8,7 @@ import {
 } from "./user.validation";
 import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
+import { TokenType } from "../../utils/token";
 
 const userRouter = Router();
 
@@ -24,6 +25,11 @@ userRouter.post(
   Authentication(),
   validation(logoutSchema),
   US.logout
+);
+userRouter.get(
+  "/refreshToken",
+  Authentication(TokenType.refresh),
+  US.refreshToken
 );
 
 export default userRouter;

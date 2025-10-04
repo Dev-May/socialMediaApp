@@ -7,14 +7,19 @@ import { eventEmitter } from "../../utils/event";
 import { generateOTP } from "../../service/sendEmail.service";
 import {
   ConfirmEmailSchemaType,
+  FlagType,
+  LogoutSchemaType,
   SignInSchemaType,
   SignUpSchemaType,
 } from "./user.validation";
 import { GenerateToken } from "../../utils/token";
 import { v4 as uuidv4 } from "uuid";
+import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
+import revokeTokenModel from "../../DB/models/revokeToken.model";
 
 class UserService {
   private _userModel = new UserRepository(userModel);
+  private _revokeToken = new RevokeTokenRepository(revokeTokenModel);
 
   constructor() {}
 
@@ -127,6 +132,30 @@ class UserService {
   // ===================== getProfile =====================
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
     return res.status(200).json({ message: "success", user: req.user });
+  };
+
+  // ===================== logout =====================
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    const { flag }: LogoutSchemaType = req.body;
+    if (flag === FlagType?.all) {
+      await this._userModel.updateOne(
+        { _id: req.user?._id },
+        { changeCredentials: new Date() }
+      );
+      return res
+        .status(200)
+        .json({ message: "success, logged out from all devices" });
+    }
+
+    await this._revokeToken.create({
+      tokenId: req.decoded?.jti!,
+      userId: req.user?._id!,
+      expireAt: new Date(req.decoded?.exp! * 1000),
+    });
+
+    return res
+      .status(200)
+      .json({ message: "success, logged out from this device" });
   };
 }
 

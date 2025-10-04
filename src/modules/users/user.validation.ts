@@ -1,6 +1,11 @@
 import z from "zod";
 import { GenderType } from "../../DB/models/user.model";
 
+export enum FlagType {
+  all = "all",
+  current = "current",
+}
+
 export const signInSchema = {
   body: z
     .strictObject({
@@ -46,8 +51,18 @@ export const confirmEmailSchema = {
     .required(),
 };
 
+export const logoutSchema = {
+  body: z
+    .strictObject({
+      flag: z.enum(FlagType),
+    })
+    .required(),
+};
+
 export type SignUpSchemaType = z.infer<typeof signUpSchema.body>;
 
 export type SignInSchemaType = z.infer<typeof signInSchema.body>;
 
 export type ConfirmEmailSchemaType = z.infer<typeof confirmEmailSchema.body>;
+
+export type LogoutSchemaType = z.infer<typeof logoutSchema.body>;

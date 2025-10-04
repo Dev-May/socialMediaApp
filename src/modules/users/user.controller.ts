@@ -2,6 +2,7 @@ import { Router } from "express";
 import US from "./user.service";
 import {
   confirmEmailSchema,
+  signInSchema,
   signUpSchema,
 } from "./user.validation";
 import { validation } from "../../middleware/validation";
@@ -14,5 +15,6 @@ userRouter.patch(
   validation(confirmEmailSchema),
   US.confirmEmail
 );
+userRouter.post("/signIn", validation(signInSchema), US.signIn);
 
 export default userRouter;

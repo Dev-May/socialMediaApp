@@ -1,14 +1,21 @@
 import z from "zod";
 import { GenderType } from "../../DB/models/user.model";
 
-export const signUpSchema = {
+export const signInSchema = {
   body: z
     .strictObject({
-      fullName: z.string().min(2).max(15).trim(),
       email: z.email(),
       password: z
         .string()
         .regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/),
+    })
+    .required(),
+};
+
+export const signUpSchema = {
+  body: signInSchema.body
+    .extend({
+      fullName: z.string().min(2).max(15).trim(),
       cPassword: z.string(),
       phone: z.string(),
       address: z.string(),
@@ -40,4 +47,7 @@ export const confirmEmailSchema = {
 };
 
 export type SignUpSchemaType = z.infer<typeof signUpSchema.body>;
+
+export type SignInSchemaType = z.infer<typeof signInSchema.body>;
+
 export type ConfirmEmailSchemaType = z.infer<typeof confirmEmailSchema.body>;

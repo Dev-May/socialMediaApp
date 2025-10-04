@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import userModel from "../../DB/models/user.model";
+import userModel, { RoleType } from "../../DB/models/user.model";
 import { AppError } from "../../utils/classError";
 import { UserRepository } from "../../DB/repositories/user.repository";
 import { Compare, Hash } from "../../utils/hash";
@@ -7,10 +7,11 @@ import { eventEmitter } from "../../utils/event";
 import { generateOTP } from "../../service/sendEmail.service";
 import {
   ConfirmEmailSchemaType,
+  SignInSchemaType,
   SignUpSchemaType,
 } from "./user.validation";
-import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
-import revokeTokenModel from "../../DB/models/revokeToken.model";
+import { GenerateToken } from "../../utils/token";
+import { v4 as uuidv4 } from "uuid";
 
 class UserService {
   private _userModel = new UserRepository(userModel);
@@ -76,6 +77,51 @@ class UserService {
     );
 
     return res.status(200).json({ message: "confirmed" });
+  };
+
+  // ===================== signIn =====================
+  signIn = async (req: Request, res: Response, next: NextFunction) => {
+    const { email, password }: SignInSchemaType = req.body;
+
+    const user = await this._userModel.findOne({
+      email,
+      confirmed: true,
+    });
+    if (!user) {
+      throw new AppError("email not found or not confirmed yet", 404);
+    }
+    if (!(await Compare(password, user?.password))) {
+      throw new AppError("invalid password", 400);
+    }
+
+    const jwtid = uuidv4();
+    // Create token
+    const access_token = await GenerateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user.role == RoleType.user
+          ? process.env.SIGNATURE_USER_TOKEN!
+          : process.env.SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: 60 * 60,
+        jwtid,
+      },
+    });
+
+    const refresh_token = await GenerateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user.role == RoleType.user
+          ? process.env.REFRESH_SIGNATURE_USER_TOKEN!
+          : process.env.REFRESH_SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: "1y",
+        jwtid,
+      },
+    });
+    return res
+      .status(200)
+      .json({ message: "success", access_token, refresh_token });
   };
 }
 

@@ -6,6 +6,7 @@ import {
   signUpSchema,
 } from "./user.validation";
 import { validation } from "../../middleware/validation";
+import { Authentication } from "../../middleware/Authentication";
 
 const userRouter = Router();
 
@@ -16,5 +17,6 @@ userRouter.patch(
   US.confirmEmail
 );
 userRouter.post("/signIn", validation(signInSchema), US.signIn);
+userRouter.get("/getProfile", Authentication(), US.getProfile);
 
 export default userRouter;

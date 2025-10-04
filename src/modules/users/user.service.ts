@@ -123,6 +123,11 @@ class UserService {
       .status(200)
       .json({ message: "success", access_token, refresh_token });
   };
+
+  // ===================== getProfile =====================
+  getProfile = async (req: Request, res: Response, next: NextFunction) => {
+    return res.status(200).json({ message: "success", user: req.user });
+  };
 }
 
 export default new UserService();

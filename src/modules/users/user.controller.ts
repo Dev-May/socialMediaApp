@@ -2,6 +2,7 @@ import { Router } from "express";
 import US from "./user.service";
 import {
   confirmEmailSchema,
+  loginWithGmailSchema,
   logoutSchema,
   signInSchema,
   signUpSchema,
@@ -19,17 +20,18 @@ userRouter.patch(
   US.confirmEmail
 );
 userRouter.post("/signIn", validation(signInSchema), US.signIn);
+userRouter.post("/loginWithGmail", validation(loginWithGmailSchema), US.loginWithGmail);
 userRouter.get("/getProfile", Authentication(), US.getProfile);
+userRouter.get(
+  "/refreshToken",
+  Authentication(TokenType.refresh),
+  US.refreshToken
+);
 userRouter.post(
   "/logout",
   Authentication(),
   validation(logoutSchema),
   US.logout
-);
-userRouter.get(
-  "/refreshToken",
-  Authentication(TokenType.refresh),
-  US.refreshToken
 );
 
 export default userRouter;

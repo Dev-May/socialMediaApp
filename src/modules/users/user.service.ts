@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import userModel, { RoleType } from "../../DB/models/user.model";
+import userModel, { ProviderType, RoleType } from "../../DB/models/user.model";
 import { AppError } from "../../utils/classError";
 import { UserRepository } from "../../DB/repositories/user.repository";
 import { Compare, Hash } from "../../utils/hash";
@@ -8,6 +8,7 @@ import { generateOTP } from "../../service/sendEmail.service";
 import {
   ConfirmEmailSchemaType,
   FlagType,
+  logInWithGmailSchemaType,
   LogoutSchemaType,
   SignInSchemaType,
   SignUpSchemaType,
@@ -16,6 +17,7 @@ import { GenerateToken } from "../../utils/token";
 import { v4 as uuidv4 } from "uuid";
 import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
 import revokeTokenModel from "../../DB/models/revokeToken.model";
+import { OAuth2Client, TokenPayload } from "google-auth-library";
 
 class UserService {
   private _userModel = new UserRepository(userModel);
@@ -90,7 +92,7 @@ class UserService {
 
     const user = await this._userModel.findOne({
       email,
-      confirmed: true,
+      confirmed: {$exists: true}, provider: ProviderType.system,
     });
     if (!user) {
       throw new AppError("email not found or not confirmed yet", 404);
@@ -127,6 +129,68 @@ class UserService {
     return res
       .status(200)
       .json({ message: "success", access_token, refresh_token });
+  };
+
+  // ===================== logInWithGmail =====================
+  loginWithGmail = async (req: Request, res: Response, next: NextFunction) => {
+    const {idToken}: logInWithGmailSchemaType = req.body;
+
+    const client = new OAuth2Client();
+    async function verify() {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.WEB_CLIENT_ID!,
+      });
+      const payload = ticket.getPayload();
+      return payload
+    }
+    const {email, email_verified, picture, name} = await verify() as TokenPayload;
+
+    let user = await this._userModel.findOne({
+      email
+    });
+    if (!user) {
+      user = await this._userModel.create({
+        email: email!,
+        image: picture!,
+        fullName: name!,
+        confirmed: email_verified!,
+        provider: ProviderType.google,
+        password: uuidv4()
+      })
+    }
+    if(user?.provider === ProviderType.system) {
+      throw new AppError("please login on system");
+    }
+
+    const jwtid = uuidv4();
+    // Create token
+    const access_token = await GenerateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user.role == RoleType.user
+          ? process.env.SIGNATURE_USER_TOKEN!
+          : process.env.SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: 60 * 60,
+        jwtid,
+      },
+    });
+
+    const refresh_token = await GenerateToken({
+      payload: { id: user._id, email: user.email },
+      signature:
+        user.role == RoleType.user
+          ? process.env.REFRESH_SIGNATURE_USER_TOKEN!
+          : process.env.REFRESH_SIGNATURE_ADMIN_TOKEN!,
+      options: {
+        expiresIn: "1y",
+        jwtid,
+      },
+    });
+    return res
+      .status(200)
+    .json({ message: "success", access_token, refresh_token });
   };
 
   // ===================== getProfile =====================

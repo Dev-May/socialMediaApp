@@ -17,6 +17,14 @@ export const signInSchema = {
     .required(),
 };
 
+export const loginWithGmailSchema = {
+  body: z
+    .strictObject({
+      idToken: z.string(),
+    })
+    .required(),
+};
+
 export const signUpSchema = {
   body: signInSchema.body
     .extend({
@@ -66,3 +74,7 @@ export type SignInSchemaType = z.infer<typeof signInSchema.body>;
 export type ConfirmEmailSchemaType = z.infer<typeof confirmEmailSchema.body>;
 
 export type LogoutSchemaType = z.infer<typeof logoutSchema.body>;
+
+export type logInWithGmailSchemaType = z.infer<
+  typeof loginWithGmailSchema.body
+>;

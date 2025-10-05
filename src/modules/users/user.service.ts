@@ -8,8 +8,10 @@ import { generateOTP } from "../../service/sendEmail.service";
 import {
   ConfirmEmailSchemaType,
   FlagType,
+  forgetPasswordSchemaType,
   logInWithGmailSchemaType,
   LogoutSchemaType,
+  resetPasswordSchemaType,
   SignInSchemaType,
   SignUpSchemaType,
 } from "./user.validation";
@@ -71,7 +73,7 @@ class UserService {
       confirmed: { $exists: false },
     });
     if (!user) {
-      throw new AppError("email not found or already confirmed", 404);
+      throw new AppError("user not found or already confirmed", 404);
     }
 
     if (!(await Compare(otp, user?.otp!))) {
@@ -259,6 +261,51 @@ class UserService {
     return res
       .status(200)
       .json({ message: "success", access_token, refresh_token });
+  };
+
+   // ===================== forgetPassword =====================
+  forgetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    const {email}: forgetPasswordSchemaType = req.body;
+
+    const user = await this._userModel.findOne({
+      email,
+      confirmed: { $exists: true },
+    });
+    if (!user) {
+      throw new AppError("user not found or not confirmed yet", 404);
+    }
+
+    const otp = await generateOTP();
+    const hashedOtp = await Hash(String(otp));
+
+    eventEmitter.emit("forgetPassword", { email, otp });
+
+    await this._userModel.updateOne({email: user?.email}, {otp: hashedOtp})
+
+    return res.status(200).json({ message: "success, otp sent"});
+  };
+
+  // ===================== resetPassword =====================
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    const {email, otp, password, cPassword}: resetPasswordSchemaType = req.body;
+
+    const user = await this._userModel.findOne({
+      email,
+      otp: { $exists: true },
+    });
+    if (!user) {
+      throw new AppError("user not found or not confirmed yet", 404);
+    }
+
+    if(!await Compare(otp, user?.otp!)) {
+      throw new AppError("InValid otp");
+    }
+
+    const hash = await Hash(password);
+
+    await this._userModel.updateOne({email: user?.email}, {password: hash, $unset: {otp: ""}})
+
+    return res.status(200).json({ message: "success"});
   };
 }
 

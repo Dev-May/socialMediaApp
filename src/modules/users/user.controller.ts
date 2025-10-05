@@ -2,8 +2,10 @@ import { Router } from "express";
 import US from "./user.service";
 import {
   confirmEmailSchema,
+  forgetPasswordSchema,
   loginWithGmailSchema,
   logoutSchema,
+  resetPasswordSchema,
   signInSchema,
   signUpSchema,
 } from "./user.validation";
@@ -32,6 +34,16 @@ userRouter.post(
   Authentication(),
   validation(logoutSchema),
   US.logout
+);
+userRouter.patch(
+  "/forgetPassword",
+  validation(forgetPasswordSchema),
+  US.forgetPassword
+);
+userRouter.patch(
+  "/resetPassword",
+  validation(resetPasswordSchema),
+  US.resetPassword
 );
 
 export default userRouter;

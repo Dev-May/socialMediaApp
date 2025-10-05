@@ -13,3 +13,13 @@ eventEmitter.on("confirmEmail", async (data) => {
     html: emailTemplate(otp, "Email Confirmation"),
   });
 });
+
+eventEmitter.on("forgetPassword", async (data) => {
+  const { email, otp } = data;
+
+  await sendEmail({
+    to: email,
+    subject: "Forget Password",
+    html: emailTemplate(otp, "Forget Password"),
+  });
+});

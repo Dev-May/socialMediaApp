@@ -67,6 +67,33 @@ export const logoutSchema = {
     .required(),
 };
 
+export const forgetPasswordSchema = {
+  body: z
+    .strictObject({
+      email: z.email(),
+    })
+    .required(),
+};
+
+export const resetPasswordSchema = {
+  body: confirmEmailSchema.body.extend({
+      password: z
+        .string()
+        .regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/),
+        cPassword: z.string(),
+    })
+    .required()
+    .superRefine((value, ctx) => {
+      if (value.password !== value.cPassword) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["cPassword"],
+          message: "password not match",
+        });
+      }
+    }),
+};
+
 export type SignUpSchemaType = z.infer<typeof signUpSchema.body>;
 
 export type SignInSchemaType = z.infer<typeof signInSchema.body>;
@@ -75,6 +102,13 @@ export type ConfirmEmailSchemaType = z.infer<typeof confirmEmailSchema.body>;
 
 export type LogoutSchemaType = z.infer<typeof logoutSchema.body>;
 
+export type forgetPasswordSchemaType = z.infer<
+  typeof forgetPasswordSchema.body
+>;
+
 export type logInWithGmailSchemaType = z.infer<
   typeof loginWithGmailSchema.body
+>;
+export type resetPasswordSchemaType = z.infer<
+  typeof resetPasswordSchema.body
 >;

@@ -1,28 +1,25 @@
 import { Router } from "express";
 import US from "./user.service";
-import {
-  confirmEmailSchema,
-  forgetPasswordSchema,
-  loginWithGmailSchema,
-  logoutSchema,
-  resetPasswordSchema,
-  signInSchema,
-  signUpSchema,
-} from "./user.validation";
+import * as UV from "./user.validation";
 import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
 import { TokenType } from "../../utils/token";
+import { fileValidation, multerCloud } from "../../middleware/multer.cloud";
 
 const userRouter = Router();
 
-userRouter.post("/signUp", validation(signUpSchema), US.signUp);
+userRouter.post("/signUp", validation(UV.signUpSchema), US.signUp);
 userRouter.patch(
   "/confirmEmail",
-  validation(confirmEmailSchema),
+  validation(UV.confirmEmailSchema),
   US.confirmEmail
 );
-userRouter.post("/signIn", validation(signInSchema), US.signIn);
-userRouter.post("/loginWithGmail", validation(loginWithGmailSchema), US.loginWithGmail);
+userRouter.post("/signIn", validation(UV.signInSchema), US.signIn);
+userRouter.post(
+  "/loginWithGmail",
+  validation(UV.loginWithGmailSchema),
+  US.loginWithGmail
+);
 userRouter.get("/getProfile", Authentication(), US.getProfile);
 userRouter.get(
   "/refreshToken",
@@ -32,18 +29,23 @@ userRouter.get(
 userRouter.post(
   "/logout",
   Authentication(),
-  validation(logoutSchema),
+  validation(UV.logoutSchema),
   US.logout
 );
 userRouter.patch(
   "/forgetPassword",
-  validation(forgetPasswordSchema),
+  validation(UV.forgetPasswordSchema),
   US.forgetPassword
 );
 userRouter.patch(
   "/resetPassword",
-  validation(resetPasswordSchema),
+  validation(UV.resetPasswordSchema),
   US.resetPassword
+);
+userRouter.post(
+  "/upload",
+  multerCloud({ fileTypes: fileValidation.image }).single("file"),
+  US.uploadImage
 );
 
 export default userRouter;

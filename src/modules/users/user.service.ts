@@ -94,7 +94,8 @@ class UserService {
 
     const user = await this._userModel.findOne({
       email,
-      confirmed: {$exists: true}, provider: ProviderType.system,
+      confirmed: { $exists: true },
+      provider: ProviderType.system,
     });
     if (!user) {
       throw new AppError("email not found or not confirmed yet", 404);
@@ -135,7 +136,7 @@ class UserService {
 
   // ===================== logInWithGmail =====================
   loginWithGmail = async (req: Request, res: Response, next: NextFunction) => {
-    const {idToken}: logInWithGmailSchemaType = req.body;
+    const { idToken }: logInWithGmailSchemaType = req.body;
 
     const client = new OAuth2Client();
     async function verify() {
@@ -144,12 +145,13 @@ class UserService {
         audience: process.env.WEB_CLIENT_ID!,
       });
       const payload = ticket.getPayload();
-      return payload
+      return payload;
     }
-    const {email, email_verified, picture, name} = await verify() as TokenPayload;
+    const { email, email_verified, picture, name } =
+      (await verify()) as TokenPayload;
 
     let user = await this._userModel.findOne({
-      email
+      email,
     });
     if (!user) {
       user = await this._userModel.create({
@@ -158,10 +160,10 @@ class UserService {
         fullName: name!,
         confirmed: email_verified!,
         provider: ProviderType.google,
-        password: uuidv4()
-      })
+        password: uuidv4(),
+      });
     }
-    if(user?.provider === ProviderType.system) {
+    if (user?.provider === ProviderType.system) {
       throw new AppError("please login on system");
     }
 
@@ -192,7 +194,7 @@ class UserService {
     });
     return res
       .status(200)
-    .json({ message: "success", access_token, refresh_token });
+      .json({ message: "success", access_token, refresh_token });
   };
 
   // ===================== getProfile =====================
@@ -263,9 +265,9 @@ class UserService {
       .json({ message: "success", access_token, refresh_token });
   };
 
-   // ===================== forgetPassword =====================
+  // ===================== forgetPassword =====================
   forgetPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const {email}: forgetPasswordSchemaType = req.body;
+    const { email }: forgetPasswordSchemaType = req.body;
 
     const user = await this._userModel.findOne({
       email,
@@ -280,14 +282,15 @@ class UserService {
 
     eventEmitter.emit("forgetPassword", { email, otp });
 
-    await this._userModel.updateOne({email: user?.email}, {otp: hashedOtp})
+    await this._userModel.updateOne({ email: user?.email }, { otp: hashedOtp });
 
-    return res.status(200).json({ message: "success, otp sent"});
+    return res.status(200).json({ message: "success, otp sent" });
   };
 
   // ===================== resetPassword =====================
   resetPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const {email, otp, password, cPassword}: resetPasswordSchemaType = req.body;
+    const { email, otp, password, cPassword }: resetPasswordSchemaType =
+      req.body;
 
     const user = await this._userModel.findOne({
       email,
@@ -297,15 +300,23 @@ class UserService {
       throw new AppError("user not found or not confirmed yet", 404);
     }
 
-    if(!await Compare(otp, user?.otp!)) {
+    if (!(await Compare(otp, user?.otp!))) {
       throw new AppError("InValid otp");
     }
 
     const hash = await Hash(password);
 
-    await this._userModel.updateOne({email: user?.email}, {password: hash, $unset: {otp: ""}})
+    await this._userModel.updateOne(
+      { email: user?.email },
+      { password: hash, $unset: { otp: "" } }
+    );
 
-    return res.status(200).json({ message: "success"});
+    return res.status(200).json({ message: "success" });
+  };
+
+  // ===================== uploadImage =====================
+  uploadImage = async (req: Request, res: Response, next: NextFunction) => {
+    return res.status(200).json({ message: "success", file: req.file });
   };
 }
 

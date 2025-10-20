@@ -20,6 +20,8 @@ import { v4 as uuidv4 } from "uuid";
 import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
 import revokeTokenModel from "../../DB/models/revokeToken.model";
 import { OAuth2Client, TokenPayload } from "google-auth-library";
+import { createUploadFilePresignedUrl, uploadFile, uploadFiles, uploadLargeFile } from "../../utils/s3.config";
+import { StorageEnum } from "../../middleware/multer.cloud";
 
 class UserService {
   private _userModel = new UserRepository(userModel);
@@ -305,7 +307,23 @@ class UserService {
 
     await this._userModel.updateOne({email: user?.email}, {password: hash, $unset: {otp: ""}})
 
-    return res.status(200).json({ message: "success"});
+    return res.status(200).json({ message: "success" });
+  };
+
+  // ===================== uploadImage =====================
+  uploadImage = async (req: Request, res: Response, next: NextFunction) => {
+    const key = await uploadFiles({
+      files: req.files as Express.Multer.File[],
+      path: `users/${req.user?._id}`,
+      storageType: StorageEnum.disk,
+    })
+    // const {originalName, ContentType} = req.body;
+    // const url = await createUploadFilePresignedUrl({
+    //   originalName,
+    //   ContentType,
+    //   path: `users/${req.user?._id}`
+    // })
+    return res.status(200).json({ message: "success", key });
   };
 }
 

@@ -12,6 +12,7 @@ import {
 import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
 import { TokenType } from "../../utils/token";
+import { fileValidation, multerCloud, StorageEnum } from "../../middleware/multer.cloud";
 
 const userRouter = Router();
 
@@ -44,6 +45,12 @@ userRouter.patch(
   "/resetPassword",
   validation(resetPasswordSchema),
   US.resetPassword
+);
+userRouter.post(
+  "/upload",
+  Authentication(),
+  multerCloud({ fileTypes: fileValidation.image, storageType: StorageEnum.disk }).array("files"),
+  US.uploadImage
 );
 
 export default userRouter;

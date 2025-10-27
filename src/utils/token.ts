@@ -80,11 +80,11 @@ export const decodeTokenAndFetchUser = async (
   }
 
   if (await _revokeToken.findOne({ tokenId: decoded?.jti })) {
-    throw new AppError("Token has been revoked", 401);
+    throw new AppError("Credentials have been changed, please log in again.", 401);
   }
 
   if (user?.changeCredentials?.getTime()! > decoded?.iat! * 1000) {
-    throw new AppError("Token has been revoked", 401);
+    throw new AppError("Credentials have been changed, please log in again.", 401);
   }
 
   return { decoded, user };

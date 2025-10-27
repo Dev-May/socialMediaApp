@@ -7,20 +7,26 @@ import { eventEmitter } from "../../utils/event";
 import { generateOTP } from "../../service/sendEmail.service";
 import {
   ConfirmEmailSchemaType,
+  deleteUserSchemaType,
   FlagType,
   forgetPasswordSchemaType,
+  freezeSchemaType,
   logInWithGmailSchemaType,
   LogoutSchemaType,
   resetPasswordSchemaType,
   SignInSchemaType,
   SignUpSchemaType,
+  unfreezeSchemaType,
 } from "./user.validation";
 import { GenerateToken } from "../../utils/token";
 import { v4 as uuidv4 } from "uuid";
 import { RevokeTokenRepository } from "../../DB/repositories/revokeToken.repository";
 import revokeTokenModel from "../../DB/models/revokeToken.model";
 import { OAuth2Client, TokenPayload } from "google-auth-library";
-import { createUploadFilePresignedUrl, uploadFile, uploadFiles, uploadLargeFile } from "../../utils/s3.config";
+import {
+  createUploadFilePresignedUrl,
+  uploadFiles,
+} from "../../utils/s3.config";
 import { StorageEnum } from "../../middleware/multer.cloud";
 
 class UserService {
@@ -96,7 +102,8 @@ class UserService {
 
     const user = await this._userModel.findOne({
       email,
-      confirmed: {$exists: true}, provider: ProviderType.system,
+      confirmed: { $exists: true },
+      provider: ProviderType.system,
     });
     if (!user) {
       throw new AppError("email not found or not confirmed yet", 404);
@@ -137,7 +144,7 @@ class UserService {
 
   // ===================== logInWithGmail =====================
   loginWithGmail = async (req: Request, res: Response, next: NextFunction) => {
-    const {idToken}: logInWithGmailSchemaType = req.body;
+    const { idToken }: logInWithGmailSchemaType = req.body;
 
     const client = new OAuth2Client();
     async function verify() {
@@ -146,24 +153,25 @@ class UserService {
         audience: process.env.WEB_CLIENT_ID!,
       });
       const payload = ticket.getPayload();
-      return payload
+      return payload;
     }
-    const {email, email_verified, picture, name} = await verify() as TokenPayload;
+    const { email, email_verified, picture, name } =
+      (await verify()) as TokenPayload;
 
     let user = await this._userModel.findOne({
-      email
+      email,
     });
     if (!user) {
       user = await this._userModel.create({
         email: email!,
-        image: picture!,
+        profileImage: picture!,
         fullName: name!,
         confirmed: email_verified!,
         provider: ProviderType.google,
-        password: uuidv4()
-      })
+        password: uuidv4(),
+      });
     }
-    if(user?.provider === ProviderType.system) {
+    if (user?.provider === ProviderType.system) {
       throw new AppError("please login on system");
     }
 
@@ -194,7 +202,7 @@ class UserService {
     });
     return res
       .status(200)
-    .json({ message: "success", access_token, refresh_token });
+      .json({ message: "success", access_token, refresh_token });
   };
 
   // ===================== getProfile =====================
@@ -265,9 +273,9 @@ class UserService {
       .json({ message: "success", access_token, refresh_token });
   };
 
-   // ===================== forgetPassword =====================
+  // ===================== forgetPassword =====================
   forgetPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const {email}: forgetPasswordSchemaType = req.body;
+    const { email }: forgetPasswordSchemaType = req.body;
 
     const user = await this._userModel.findOne({
       email,
@@ -282,14 +290,15 @@ class UserService {
 
     eventEmitter.emit("forgetPassword", { email, otp });
 
-    await this._userModel.updateOne({email: user?.email}, {otp: hashedOtp})
+    await this._userModel.updateOne({ email: user?.email }, { otp: hashedOtp });
 
-    return res.status(200).json({ message: "success, otp sent"});
+    return res.status(200).json({ message: "success, otp sent" });
   };
 
   // ===================== resetPassword =====================
   resetPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const {email, otp, password, cPassword}: resetPasswordSchemaType = req.body;
+    const { email, otp, password, cPassword }: resetPasswordSchemaType =
+      req.body;
 
     const user = await this._userModel.findOne({
       email,
@@ -299,15 +308,50 @@ class UserService {
       throw new AppError("user not found or not confirmed yet", 404);
     }
 
-    if(!await Compare(otp, user?.otp!)) {
+    if (!(await Compare(otp, user?.otp!))) {
       throw new AppError("InValid otp");
     }
 
     const hash = await Hash(password);
 
-    await this._userModel.updateOne({email: user?.email}, {password: hash, $unset: {otp: ""}})
+    await this._userModel.updateOne(
+      { email: user?.email },
+      { password: hash, $unset: { otp: "" } }
+    );
 
     return res.status(200).json({ message: "success" });
+  };
+
+  // ===================== uploadProfileImage =====================
+  uploadProfileImage = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { ContentType, originalName } = req.body;
+    const { url, Key } = await createUploadFilePresignedUrl({
+      path: `users/${req.user?._id}/profileImage`,
+      ContentType,
+      originalName,
+    });
+
+    const user = await this._userModel.findOneAndUpdate(
+      { _id: req.user?._id },
+      { profileImage: Key, tempProfileImage: req.user?.profileImage }
+    );
+
+    if (!user) {
+      throw new AppError("user not found", 404);
+    }
+
+    eventEmitter.emit("uploadProfileImage", {
+      userId: req.user?._id,
+      oldKey: req.user?.profileImage,
+      Key,
+      expiresIn: 30,
+    });
+
+    return res.status(200).json({ message: "done", url, user });
   };
 
   // ===================== uploadImage =====================
@@ -316,7 +360,7 @@ class UserService {
       files: req.files as Express.Multer.File[],
       path: `users/${req.user?._id}`,
       storageType: StorageEnum.disk,
-    })
+    });
     // const {originalName, ContentType} = req.body;
     // const url = await createUploadFilePresignedUrl({
     //   originalName,
@@ -324,6 +368,83 @@ class UserService {
     //   path: `users/${req.user?._id}`
     // })
     return res.status(200).json({ message: "success", key });
+  };
+
+  // ===================== freezeAccount =====================
+  freezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+    const { userId }: freezeSchemaType = req.params as freezeSchemaType;
+
+    if (userId && req.user?.role !== RoleType.admin) {
+      throw new AppError("unauthorizes", 401);
+    }
+
+    const user = await this._userModel.findOneAndUpdate(
+      { _id: userId || req.user?._id, deletedAt: { $exists: false } },
+      {
+        deletedAt: new Date(),
+        deletedBy: req.user?._id,
+        changeCredentials: new Date(),
+      }
+    );
+
+    if (!user) {
+      throw new AppError("user not found", 404);
+    }
+
+    return res.status(200).json({ message: "freezed" });
+  };
+
+  // ===================== unfreezeAccount =====================
+  unfreezeAccount = async (req: Request, res: Response, next: NextFunction) => {
+    const { userId }: unfreezeSchemaType = req.params as unfreezeSchemaType;
+
+    if (req.user?.role !== RoleType.admin) {
+      throw new AppError("unauthorized", 401);
+    }
+
+    const user = await this._userModel.findOneAndUpdate(
+      { _id: userId, deletedAt: { $exists: true }, deletedBy: { $ne: userId } },
+      {
+        $unset: { deletedAt: "", deletedBy: "" },
+        restoredAt: new Date(),
+        restoredBy: req.user?._id,
+      }
+    );
+
+    if (!user) {
+      throw new AppError("user not found", 404);
+    }
+
+    return res.status(200).json({ message: "unfreezed" });
+  };
+
+  // ===================== deleteUser =====================
+  deleteUser = async (req: Request, res: Response, next: NextFunction) => {
+    const { userId }: deleteUserSchemaType = req.params as deleteUserSchemaType;
+
+    if (req.user?.role !== RoleType.admin || req.user?.deletedAt) {
+      throw new AppError("unauthorized", 401);
+    }
+
+    const user = await this._userModel.findOneAndDelete({
+      _id: userId,
+      deletedAt: { $exists: true },
+    });
+
+    if (!user) {
+      throw new AppError("user not found", 404);
+    }
+
+    if (user?._id) {
+      eventEmitter.emit("deleteUserFolder", { userId: user._id.toString() });
+
+      // eventEmitter.emit("deleteUserFiles", {
+      //   userId: user._id.toString(),
+      //   profileImage: user.profileImage,
+      // });
+    }
+
+    return res.status(200).json({ message: "user deleted" });
   };
 }
 

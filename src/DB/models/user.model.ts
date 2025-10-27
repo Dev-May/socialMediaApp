@@ -24,7 +24,9 @@ export interface IUser {
   age: number;
   phone?: string;
   address?: string;
-  image?: string;
+  profileImage?: string;
+  tempProfileImage?: string;
+  coverImage?: string
   gender: GenderType;
   role: RoleType;
   confirmed?: boolean;
@@ -32,6 +34,9 @@ export interface IUser {
   provider: ProviderType;
   changeCredentials?: Date;
   deletedAt?: Date;
+  deletedBy?: Types.ObjectId;
+  restoredAt: Date;
+  restoredBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,10 +73,15 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     phone: { type: String },
     address: { type: String },
-    image: { type: String },
+    profileImage: { type: String },
+    tempProfileImage: { type: String },
+    coverImage: { type: String },
     confirmed: { type: Boolean },
     otp: { type: String },
     deletedAt: { type: Date },
+    deletedBy: { type: Types.ObjectId, ref: "User" },
+    restoredAt: { type: Date },
+    restoredBy: { type: Types.ObjectId, ref: "User" },
     provider: {
       type: String,
       enum: ProviderType,

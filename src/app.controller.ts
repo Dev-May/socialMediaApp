@@ -4,6 +4,7 @@ config({ path: resolve("./config/.env") });
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
+// import morgan from "morgan";
 import { rateLimit } from "express-rate-limit";
 import { AppError } from "./utils/classError";
 import userRouter from "./modules/users/user.controller";
@@ -18,6 +19,7 @@ import {
 import { promisify } from "node:util";
 import { pipeline } from "node:stream";
 import { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3";
+import postRouter from "./modules/posts/post.controller";
 
 const writePipeLine = promisify(pipeline);
 
@@ -39,6 +41,7 @@ const bootstrap = async () => {
   app.use(cors());
   app.use(helmet());
   app.use(limiter);
+  // app.use(morgan('dev'))
 
   // Routes
   app.get("/", (req: Request, res: Response, next: NextFunction) => {
@@ -118,6 +121,7 @@ const bootstrap = async () => {
   );
 
   app.use("/users", userRouter);
+  app.use("/posts", postRouter);
 
   // Database connection
   await connectionDB();

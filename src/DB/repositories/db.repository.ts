@@ -23,6 +23,14 @@ export abstract class DbRepository<TDocument> {
     return this.model.findOne(filter, select);
   }
 
+  async find(
+    filter: RootFilterQuery<TDocument>,
+    select?: ProjectionType<TDocument>,
+    options?: QueryOptions<TDocument>
+  ): Promise<HydratedDocument<TDocument>[]> {
+    return this.model.find(filter, select, options);
+  }
+
   async updateOne(
     filter: RootFilterQuery<TDocument>,
     update: UpdateQuery<TDocument>

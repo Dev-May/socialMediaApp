@@ -37,6 +37,7 @@ export interface IUser {
   deletedBy?: Types.ObjectId;
   restoredAt: Date;
   restoredBy?: Types.ObjectId;
+  friends?: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,6 +83,7 @@ const userSchema = new mongoose.Schema<IUser>(
     deletedBy: { type: Types.ObjectId, ref: "User" },
     restoredAt: { type: Date },
     restoredBy: { type: Types.ObjectId, ref: "User" },
+    friends: [{ type: Types.ObjectId, ref: "User" }],
     provider: {
       type: String,
       enum: ProviderType,

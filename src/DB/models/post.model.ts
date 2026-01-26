@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { OnModelEnum } from "./comment.model";
 
 export enum AllowCommentEnum {
   allow = "allow",
@@ -88,6 +89,14 @@ postSchema.pre(["find", "findOne", "findOneAndUpdate", "findOneAndDelete"], asyn
   }
   next()
 })
+
+postSchema.virtual("comments", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "refId",
+  match: { onModel: OnModelEnum.Post },
+});
+
 
 const postModel = models.Post || model("Post", postSchema);
 

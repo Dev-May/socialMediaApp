@@ -12,10 +12,22 @@ import {
   likePostQueryDto,
 } from "./post.validation";
 import { UpdateQuery } from "mongoose";
+import { CommentRepository } from "../../DB/repositories/comment.repository";
+import commentModel, { OnModelEnum } from "../../DB/models/comment.model";
+
+export const AvailabilityPost = (req: Request) => [
+  { availability: AvailabilityEnum.public },
+  { availability: AvailabilityEnum.private, createdBy: req?.user?._id },
+  {
+    availability: AvailabilityEnum.friends,
+    createdBy: { $in: [...(req?.user?.friends || []), req?.user?._id] },
+  },
+];
 
 class PostService {
   private _userModel = new UserRepository(userModel);
   private _postModel = new PostRepository(postModel);
+  private _commentModel = new CommentRepository(commentModel);
 
   constructor() {}
 
@@ -23,8 +35,11 @@ class PostService {
   createPost = async (req: Request, res: Response, next: NextFunction) => {
     if (
       req?.body?.tags?.length &&
-      (await this._userModel.find({ _id: { $in: req?.body?.tags } })).length !==
-        req?.body?.tags?.length
+      (
+        await this._userModel.find({
+          filter: { _id: { $in: req?.body?.tags } },
+        })
+      ).length !== req?.body?.tags?.length
     ) {
       throw new AppError("invalid user id", 400);
     }
@@ -126,8 +141,11 @@ class PostService {
     if (req?.body?.tags?.length) {
       if (
         req?.body?.tags?.length &&
-        (await this._userModel.find({ _id: { $in: req?.body?.tags } }))
-          .length !== req?.body?.tags?.length
+        (
+          await this._userModel.find({
+            filter: { _id: { $in: req?.body?.tags } },
+          })
+        ).length !== req?.body?.tags?.length
       ) {
         throw new AppError("invalid user id", 400);
       }
@@ -138,6 +156,28 @@ class PostService {
 
     return res.status(201).json({ message: `updated`, post });
   };
-}
+
+   // ===================== getPosts =====================
+  getPosts = async (req: Request, res: Response, next: NextFunction) => {
+    let { page = 1, limit = 1 } = req.query as unknown as {
+      page: number;
+      limit: number;
+    };
+
+    const { currentPage, docs, countDocuments, numberOfPages } = await this._postModel.paginate({
+      filter: {},
+      query: { page, limit },
+      options: {
+        populate: [
+          { path: "comments", match: { onModel: OnModelEnum.Post }, populate: { path: "replies" } },
+        ]
+      }
+    });
+
+      return res
+        .status(200)
+        .json({ message: "success", currentPage, numberOfPages, countDocuments, posts: docs });
+    };
+  };
 
 export default new PostService();

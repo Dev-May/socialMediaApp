@@ -4,8 +4,11 @@ import * as PV from "./post.validation";
 import { validation } from "../../middleware/validation";
 import { Authentication } from "../../middleware/Authentication";
 import { fileValidation, multerCloud } from "../../middleware/multer.cloud";
+import commentRouter from "../comments/comment.controller";
 
 const postRouter = Router({});
+
+postRouter.use("/:postId/comments{/:commentId/reply}", commentRouter);
 
 postRouter.post(
   "/",
@@ -29,5 +32,7 @@ postRouter.patch(
   validation(PV.updatePostSchema),
   PS.updatePost,
 );
+
+postRouter.get("/", PS.getPosts);
 
 export default postRouter;
